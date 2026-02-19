@@ -1,0 +1,75 @@
+===========================================================
+FEATURE ENGINEERING DOCUMENTATION: Burnout Predictor 2026
+===========================================================
+
+Project: Remote Employee Burnout Predictor
+Author: Moeenuddin
+Data Version: 2.0 (With Memory Features)
+
+OVERVIEW:
+Burnout is a cumulative process, not a single-day event. These 4 new 
+columns were created to give the model "Historical Context," allowing 
+it to see patterns over time rather than just isolated snapshots.
+
+-----------------------------------------------------------
+1. COLUMN: work_hours_7d_avg
+-----------------------------------------------------------
+- SOURCE: 'work_hours'
+- LOGIC: Average of the last 7 days of work for each user.
+- WHY IT MATTERS: High hours on a single Tuesday might just be a 
+  deadline. However, a high 7-day average proves "Chronic Overwork."
+- MODEL IMPACT: This acts as a 'Stamina' indicator. It helps the model 
+  identify employees who are consistently over-extending themselves 
+  without rest.
+
+-----------------------------------------------------------
+2. COLUMN: fatigue_3d_sum
+-----------------------------------------------------------
+- SOURCE: 'fatigue_score'
+- LOGIC: Total sum of fatigue scores over the last 3 days.
+- WHY IT MATTERS: Fatigue is "sticky"—it carries over to the next day. 
+  If the sum is high, the person is entering a "fatigue debt."
+- MODEL IMPACT: This is a 'Recovery' indicator. It allows the model to 
+  detect when stress is accumulating faster than the employee can 
+  recover, which is a major precursor to burnout.
+
+-----------------------------------------------------------
+3. COLUMN: is_weekend
+-----------------------------------------------------------
+- SOURCE: 'day_type'
+- LOGIC: A Binary Flag (True/False) identifying rest days.
+- WHY IT MATTERS: Working 8 hours on a Sunday is more draining than 
+  working 8 hours on a Wednesday due to the lack of social recovery.
+- MODEL IMPACT: This serves as a 'Boundary' indicator. It helps the 
+  model "penalize" work hours that occur during traditional rest periods, 
+  making the burnout prediction more sensitive to work-life balance.
+
+-----------------------------------------------------------
+4. COLUMN: meetings_7d_avg
+-----------------------------------------------------------
+- SOURCE: 'meetings_count'
+- LOGIC: Average number of meetings per day over the last week.
+- WHY IT MATTERS: Virtual meetings cause "Context Switching" fatigue. 
+  A high weekly average indicates "Zoom Exhaustion."
+- MODEL IMPACT: This is a 'Cognitive Load' indicator. It helps the 
+  model understand the quality of work stress; high meetings often 
+  correlate with high mental drain even if work hours are normal.
+
+-----------------------------------------------------------
+HOW THESE FEATURES HELP THE MACHINE LEARNING MODEL:
+-----------------------------------------------------------
+1. Pattern Recognition: Instead of just looking at raw numbers, the 
+   model can now see "Trends" (e.g., Is fatigue going up or down?).
+   
+2. Noise Reduction: Daily spikes (like one late night) are smoothed 
+   out by the 7-day averages, preventing the model from overreacting 
+   to single events.
+
+3. Better Decision Trees: The model can now create complex rules like:
+   "IF (Work Hours > 8) AND (7-Day Average > 9) AND (is_weekend), 
+   THEN (Burnout Risk = High)."
+
+4. Proactive Prediction: Because these features track accumulation, 
+   the model can predict burnout BEFORE it happens by watching the 
+   3-day and 7-day trends rise.
+===========================================================
