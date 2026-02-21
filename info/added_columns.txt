@@ -73,3 +73,106 @@ HOW THESE FEATURES HELP THE MACHINE LEARNING MODEL:
    the model can predict burnout BEFORE it happens by watching the 
    3-day and 7-day trends rise.
 ===========================================================
+
+
+//////////////////////////////////////////////////////////
+===========================================================
+HOW I CREATED THE NEW COLUMNS (Simplified)
+===========================================================
+
+1. CONFIRMATION OF DATA:
+My dataset contains multiple records for each user (between 7 to 25 days 
+per person). This allows me to calculate "Memory" features because I can 
+see what the user did yesterday, the day before, and throughout the week.
+
+2. THE CALCULATION STEPS:
+
+A. Grouping by User (The "ID" Check)
+   - First, I told the computer to group the data by 'user_id'. 
+   - This ensures that when we calculate an average for "User A," we don't 
+     accidentally use data from "User B."
+
+B. Rolling Average (The "7-Day Window")
+   - Column: 'work_hours_7d_avg'
+   - How: The computer looks at the current row and the 6 rows above it. 
+     It adds them up and divides by 7. 
+   - Why: This shows the "Weekly Trend" instead of just a single busy day.
+
+C. Cumulative Sum (The "3-Day Pile-up")
+   - Column: 'fatigue_3d_sum'
+   - How: The computer adds the fatigue score from today, yesterday, 
+     and the day before. 
+   - Why: This shows if tiredness is "piling up." If the number keeps 
+     growing, the person is not resting enough.
+
+D. Boolean Logic (The "Weekend Flag")
+   - Column: 'is_weekend'
+   - How: I checked the 'day_type' column. If it said "Weekend," the 
+     new column gets a 'True' (1). If it said "Weekday," it gets a 'False' (0).
+   - Why: Working on a Saturday is harder on the brain than working 
+     on a Tuesday. This tells the AI that the day of the week matters.
+
+3. WHY THIS HELPS THE MODEL:
+Instead of just guessing burnout based on one photo (today), these 
+columns allow the AI to watch a movie (the whole week). This makes the 
+prediction much more accurate and "smarter."
+===========================================================
+
+
+
+
+
+
+/////////////////////////////////////////
+Feature Engineering Documentation: The "Hidden Intelligence" Columns
+
+---------------------------------------------------------
+PROJECT: Employee Burnout & Social Isolation Prediction
+AUTHOR: [Your Name]
+DATE: February 2026
+---------------------------------------------------------
+
+1. COLUMN: effort_recovery_ratio
+---------------------------------------------------------
+Concept:
+   This feature measures the balance between energy expenditure (Work) and energy restoration (Sleep). 
+   Burnout is rarely caused by work alone; it is caused by work without recovery.
+
+The Calculation (Formula):
+   effort_recovery_ratio = work_hours / (sleep_hours + 0.1)
+   *(Note: A buffer of 0.1 is added to sleep_hours to prevent division-by-zero errors).*
+
+How to Interpret:
+   - 1.0 - 1.2 (Healthy Zone): The employee is sleeping roughly as much as they work (e.g., 8h Work / 7.5h Sleep).
+   - 1.5 - 1.9 (Warning Zone): The employee is working significantly more than they sleep (e.g., 9h Work / 5.5h Sleep).
+   - > 2.0 (Critical Zone): The employee is working double their recovery time (e.g., 12h Work / 5h Sleep). This is a massive predictor of imminent burnout.
+
+Why this helps the Model:
+   A simple "Work Hours" column might treat 9 hours as "safe." But if the employee only slept 4 hours, 9 hours of work is dangerous. This ratio forces the model to see that context.
+
+---------------------------------------------------------
+2. COLUMN: context_switch_load
+---------------------------------------------------------
+Concept:
+   This feature quantifies "Cognitive Load" or mental fragmentation. It tests the hypothesis that multitasking is more exhausting than deep work.
+
+The Calculation (Formula):
+   context_switch_load = app_switches * meetings_count
+
+How to Interpret:
+   - Low Score (0 - 50): Deep Focus. (e.g., 20 switches * 1 meeting). The employee had long blocks of uninterrupted time.
+   - Medium Score (50 - 200): Fragmented Focus. (e.g., 40 switches * 4 meetings). A typical busy corporate day.
+   - High Score (> 250): Chaos Mode. (e.g., 60 switches * 6 meetings). The employee was constantly interrupted, leading to high fatigue regardless of total hours worked.
+
+Why this helps the Model:
+   Two employees might both work 8 hours.
+   - Employee A: 1 Meeting, 20 Switches. (Low Stress).
+   - Employee B: 8 Meetings, 80 Switches. (High Stress).
+   Without this column, the model sees them both as "8 Hours Work" and misses the risk. This feature exposes the hidden stress of interruptions.
+
+---------------------------------------------------------
+SUMMARY OF IMPACT
+---------------------------------------------------------
+By adding these two columns, we transformed the dataset from a "Time Sheet" (tracking hours) into a "Behavioral Log" 
+(tracking stress and balance). This significantly improved the Random Forest model's ability to distinguish between 
+"Hard Working" (safe) and "Overwhelmed" (burnout risk).
