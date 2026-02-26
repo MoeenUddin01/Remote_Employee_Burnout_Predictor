@@ -206,3 +206,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 dataset/
+#artifacts/
+artifacts/
+artifacts/
+
+/home/moeenuddin/Desktop/all_projects_ML/Remote_Employee_Burnout_Predictor/Remote_Employee_Burnout_Predictor/artifacts
