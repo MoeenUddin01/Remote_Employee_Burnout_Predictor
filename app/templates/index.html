@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Burnout Predictor</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --low-risk: #10b981;
+            --medium-risk: #f59e0b;
+            --high-risk: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: radial-gradient(circle at 50% 0%, #1e3a8a 0%, transparent 50%),
+                              radial-gradient(circle at 0% 100%, #312e81 0%, transparent 50%);
+            padding: 2rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 2rem;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .header-section h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-section p {
+            color: var(--text-muted);
+            line-height: 1.6;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Form Styles */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .input-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        label span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Number arrows hiding */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+
+        .btn-submit {
+            grid-column: 1 / -1;
+            background: linear-gradient(to right, var(--primary), #4f46e5);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.5);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        /* Result Section */
+        #result-container {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2.5rem;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 20px;
+            border: 1px dashed var(--border-color);
+            animation: fadeIn 0.5s ease-out;
+            height: 100%;
+        }
+
+        #result-container h2 {
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .risk-badge {
+            font-size: 3rem;
+            font-weight: 700;
+            padding: 1rem 2rem;
+            border-radius: 16px;
+            margin: 1rem 0;
+            display: inline-block;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .risk-low {
+            color: var(--low-risk);
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.3);
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .risk-medium {
+            color: var(--medium-risk);
+            background: rgba(245, 158, 11, 0.1);
+            border: 2px solid rgba(245, 158, 11, 0.3);
+            text-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .risk-high {
+            color: var(--high-risk);
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .fatigue-metrics {
+            margin-top: 1.5rem;
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            padding: 1rem;
+            border-radius: 12px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 860px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 2rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Left Side: Form -->
+        <div class="form-section">
+            <div class="header-section">
+                <h1>Burnout Predictor</h1>
+                <p>AI-powered risk analysis for remote workers. Enter your daily metrics to predict your likelihood of burnout.</p>
+            </div>
+
+            <form id="predictionForm">
+                <div class="form-grid">
+                    
+                    <div class="input-group">
+                        <label>Day Type</label>
+                        <select id="day_type" required>
+                            <option value="Weekday">Weekday</option>
+                            <option value="Weekend">Weekend</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Work Hours <span>(0-24)</span></label>
+                        <input type="number" id="work_hours" step="0.1" required placeholder="e.g. 8">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Screen Time <span>(Hours)</span></label>
+                        <input type="number" id="screen_time" step="0.1" required placeholder="e.g. 6">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Sleep Hours <span>(Last Night)</span></label>
+                        <input type="number" id="sleep_hours" step="0.1" required placeholder="e.g. 7.5">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Meetings Count</label>
+                        <input type="number" id="meetings" required placeholder="e.g. 3">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Breaks Taken</label>
+                        <input type="number" id="breaks" required placeholder="e.g. 2">
+                    </div>
+
+                    <div class="input-group">
+                        <label>App Switches <span>(Context changes)</span></label>
+                        <input type="number" id="switches" required placeholder="e.g. 40">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Overtime <span>(After Hours)</span></label>
+                        <input type="number" id="overtime" step="0.1" required placeholder="e.g. 1.5">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Task Completion <span>(%)</span></label>
+                        <input type="number" id="task_comp" min="0" max="100" required placeholder="e.g. 85">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Isolation Index <span>(1-10)</span></label>
+                        <input type="number" id="isolation" min="1" max="10" required placeholder="e.g. 4">
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">Analyze Risk</button>
+
+                </div>
+            </form>
+        </div>
+
+        <!-- Right Side: Results -->
+        <div id="result-container">
+            <div class="spinner" id="loadingSpinner"></div>
+            
+            <div id="resultContent" style="display:none; width:100%;">
+                <h2>Predicted Risk Level</h2>
+                
+                <div id="riskBadge" class="risk-badge">
+                    High
+                </div>
+
+                <div class="fatigue-metrics">
+                    <div class="metric-row">
+                        <span>Calculated Fatigue Score</span>
+                        <span class="metric-value" id="res_fatigue">8.5 / 10</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>High Risk Probability</span>
+                        <span class="metric-value" id="res_prob">92%</span>
+                    </div>
+                </div>
+
+                <p style="margin-top:2rem; font-size:0.9rem; color:var(--text-muted);">
+                    Based on XGBoost Machine Learning Model processing 14 rolling features dynamically.
+                </p>
+            </div>
+            
+            <div id="placeholderText" style="color:var(--text-muted);">
+                Fill out the form and click analyze to view AI predictions.
+            </div>
+            <div id="errorText" style="display:none; color:var(--high-risk); margin-top:2rem;"></div>
+        </div>
+
+    </div>
+
+    <script>
+        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // UI States
+            const btn = document.getElementById('submitBtn');
+            const resultBox = document.getElementById('result-container');
+            const resultContent = document.getElementById('resultContent');
+            const spinner = document.getElementById('loadingSpinner');
+            const placeholder = document.getElementById('placeholderText');
+            const errorText = document.getElementById('errorText');
+
+            btn.disabled = true;
+            btn.innerText = "Analyzing...";
+            resultBox.style.display = "flex";
+            placeholder.style.display = "none";
+            resultContent.style.display = "none";
+            errorText.style.display = "none";
+            spinner.style.display = "block";
+
+            // Build Payload
+            const payload = {
+                day_type: document.getElementById('day_type').value,
+                work_hours: parseFloat(document.getElementById('work_hours').value),
+                screen_time_hours: parseFloat(document.getElementById('screen_time').value),
+                meetings_count: parseInt(document.getElementById('meetings').value),
+                breaks_taken: parseInt(document.getElementById('breaks').value),
+                after_hours_work: parseFloat(document.getElementById('overtime').value),
+                app_switches: parseInt(document.getElementById('switches').value),
+                sleep_hours: parseFloat(document.getElementById('sleep_hours').value),
+                task_completion: parseFloat(document.getElementById('task_comp').value),
+                isolation_index: parseInt(document.getElementById('isolation').value)
+            };
+
+            try {
+                // Simulate slight network delay for dramatic effect
+                await new Promise(r => setTimeout(r, 600));
+
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error("Server Error: " + response.statusText);
+                }
+
+                const data = await response.json();
+                
+                // Update UI with Data
+                const badge = document.getElementById('riskBadge');
+                badge.innerText = data.burnout_risk_level;
+                
+                badge.className = "risk-badge"; // Reset
+                if (data.burnout_risk_level === "Low") badge.classList.add("risk-low");
+                else if (data.burnout_risk_level === "Medium") badge.classList.add("risk-medium");
+                else badge.classList.add("risk-high");
+
+                document.getElementById('res_fatigue').innerText = data.fatigue_score.toFixed(2) + " / 10";
+                
+                // Show probability of the winning class
+                const maxProb = data.probabilities[data.burnout_risk_level];
+                document.getElementById('res_prob').innerText = (maxProb * 100).toFixed(1) + "%";
+
+                // Show results
+                spinner.style.display = "none";
+                resultContent.style.display = "block";
+
+            } catch (err) {
+                spinner.style.display = "none";
+                errorText.style.display = "block";
+                errorText.innerText = "Error completing prediction: " + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Analyze Risk";
+            }
+        });
+    </script>
+</body>
+</html>
