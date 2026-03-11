@@ -1,467 +1,1239 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Remote Burnout Predictor</title>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Remote Burnout Predictor — AI Risk Analysis</title>
+    <meta name="description"
+        content="AI-powered remote employee burnout risk predictor. Enter your daily metrics and get instant analysis using XGBoost ML.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
     <style>
-        :root {
-            --bg-dark: #0f172a;
-            --bg-card: rgba(30, 41, 59, 0.7);
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border-color: rgba(255, 255, 255, 0.1);
-            --low-risk: #10b981;
-            --medium-risk: #f59e0b;
-            --high-risk: #ef4444;
-        }
-
-        * {
+        *,
+        *::before,
+        *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
+        }
+
+        :root {
+            --bg: hsl(222, 47%, 6%);
+            --bg-2: hsl(222, 40%, 9%);
+            --surface: hsla(222, 40%, 14%, 0.7);
+            --surface-2: hsla(222, 40%, 18%, 0.5);
+            --border: hsla(210, 40%, 100%, 0.08);
+            --border-focus: hsla(217, 91%, 60%, 0.6);
+            --text: hsl(210, 40%, 96%);
+            --muted: hsl(215, 20%, 55%);
+            --accent: hsl(217, 91%, 60%);
+            --accent-glow: hsla(217, 91%, 60%, 0.25);
+            --low: hsl(158, 64%, 52%);
+            --low-bg: hsla(158, 64%, 52%, 0.1);
+            --low-border: hsla(158, 64%, 52%, 0.25);
+            --med: hsl(38, 92%, 50%);
+            --med-bg: hsla(38, 92%, 50%, 0.1);
+            --med-border: hsla(38, 92%, 50%, 0.25);
+            --high: hsl(0, 84%, 60%);
+            --high-bg: hsla(0, 84%, 60%, 0.1);
+            --high-border: hsla(0, 84%, 60%, 0.25);
+            --radius: 16px;
+            --radius-sm: 10px;
         }
 
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% -20%, hsla(217, 91%, 40%, 0.15) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 110%, hsla(262, 83%, 40%, 0.15) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #root {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Layout */
+        .page {
             min-height: 100vh;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+        }
+
+        /* Navbar */
+        .navbar {
+            display: flex;
             align-items: center;
-            background-image: radial-gradient(circle at 50% 0%, #1e3a8a 0%, transparent 50%),
-                              radial-gradient(circle at 0% 100%, #312e81 0%, transparent 50%);
-            padding: 2rem;
+            justify-content: space-between;
+            padding: 1.25rem 2.5rem;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            background: hsla(222, 47%, 6%, 0.6);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .container {
-            width: 100%;
-            max-width: 1000px;
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent), hsl(262, 83%, 60%));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .nav-badge {
+            font-size: 0.72rem;
+            font-weight: 500;
+            padding: 0.3rem 0.75rem;
+            border-radius: 999px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+
+        /* Main content */
+        .main {
+            flex: 1;
             display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 2rem;
-            background: var(--bg-card);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 3rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.8s ease-out;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            max-width: 1280px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2.5rem;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .header-section {
+        /* Left panel */
+        .left-panel {
+            padding-right: 3rem;
             display: flex;
             flex-direction: column;
-            justify-content: center;
         }
 
-        .header-section h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
+        .hero-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 1.25rem;
+        }
+
+        .hero-tag::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse-dot 2s ease infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.7);
+            }
+        }
+
+        .hero-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
             margin-bottom: 1rem;
-            background: linear-gradient(to right, #60a5fa, #a78bfa);
+        }
+
+        .hero-title span {
+            background: linear-gradient(135deg, var(--accent) 0%, hsl(262, 83%, 70%) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .header-section p {
-            color: var(--text-muted);
-            line-height: 1.6;
-            font-size: 1.1rem;
+        .hero-desc {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: var(--muted);
             margin-bottom: 2rem;
         }
 
-        /* Form Styles */
+        /* Stat chips */
+        .stat-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.8rem 1.2rem;
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .stat-chip .val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: block;
+        }
+
+        .stat-chip .lbl {
+            font-size: 0.72rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Step wizard progress */
+        .step-progress {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--muted);
+            transition: all 0.35s ease;
+            flex-shrink: 0;
+        }
+
+        .step-dot.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .step-dot.done {
+            background: hsla(158, 64%, 52%, 0.2);
+            border-color: var(--low);
+            color: var(--low);
+        }
+
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: var(--border);
+            margin: 0 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-line-fill {
+            position: absolute;
+            inset: 0;
+            background: var(--low);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
+        }
+
+        .step-line-fill.done {
+            transform: scaleX(1);
+        }
+
+        .step-label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-left: 0.75rem;
+            white-space: nowrap;
+        }
+
+        /* Card / Form */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 2rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 0.35rem;
+        }
+
+        .card-sub {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-bottom: 1.75rem;
+        }
+
+        /* Form grid */
         .form-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.2rem;
-            margin-bottom: 2rem;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
 
-        .input-group {
+        .form-grid.cols-1 {
+            grid-template-columns: 1fr;
+        }
+
+        .field {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.45rem;
         }
 
-        .input-group.full-width {
+        .field.span-2 {
             grid-column: 1 / -1;
         }
 
         label {
-            font-size: 0.9rem;
+            font-size: 0.82rem;
             font-weight: 500;
-            color: #cbd5e1;
+            color: hsl(215, 20%, 75%);
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 0.4rem;
         }
 
-        label span {
-            font-size: 0.75rem;
-            color: var(--text-muted);
+        label .hint {
+            font-size: 0.72rem;
+            color: var(--muted);
             font-weight: 400;
         }
 
         input[type="number"],
         select {
             width: 100%;
-            padding: 0.8rem 1rem;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            color: white;
-            font-size: 1rem;
-            transition: all 0.3s ease;
+            padding: 0.7rem 1rem;
+            background: hsla(222, 40%, 10%, 0.8);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: 0.92rem;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+            appearance: none;
+            -webkit-appearance: none;
         }
 
-        input[type="number"]:focus,
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+        }
+
+        input:focus,
         select:focus {
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            border-color: var(--accent);
+            background: hsla(222, 40%, 12%, 0.9);
+            box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
-        /* Number arrows hiding */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
+        /* Slider for isolation index */
+        .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        .btn-submit {
-            grid-column: 1 / -1;
-            background: linear-gradient(to right, var(--primary), #4f46e5);
-            color: white;
-            border: none;
-            padding: 1rem;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
+        input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: var(--border);
+            border-radius: 999px;
+            outline: none;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
         }
 
-        .btn-submit:hover {
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent-glow);
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+
+        .slider-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent);
+            min-width: 28px;
+            text-align: center;
+        }
+
+        /* Buttons */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.85rem 1.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            border: none;
+            transition: all 0.25s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), hsl(262, 83%, 60%));
+            color: white;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.5);
+            box-shadow: 0 8px 30px var(--accent-glow);
         }
 
-        .btn-submit:active {
+        .btn-primary:active:not(:disabled) {
             transform: translateY(0);
         }
 
-        /* Result Section */
-        #result-container {
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 2.5rem;
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 20px;
-            border: 1px dashed var(--border-color);
-            animation: fadeIn 0.5s ease-out;
-            height: 100%;
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
-        #result-container h2 {
-            font-size: 1.5rem;
-            color: var(--text-muted);
+        .btn-ghost {
+            background: var(--surface-2);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* Right panel */
+        .right-panel {
+            padding-left: 3rem;
+            border-left: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+            width: 100%;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .empty-state h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
             margin-bottom: 0.5rem;
         }
 
-        .risk-badge {
-            font-size: 3rem;
-            font-weight: 700;
-            padding: 1rem 2rem;
-            border-radius: 16px;
-            margin: 1rem 0;
-            display: inline-block;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .empty-state p {
+            font-size: 0.88rem;
+            color: var(--muted);
+            line-height: 1.6;
         }
 
-        .risk-low {
-            color: var(--low-risk);
-            background: rgba(16, 185, 129, 0.1);
-            border: 2px solid rgba(16, 185, 129, 0.3);
-            text-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-        }
-
-        .risk-medium {
-            color: var(--medium-risk);
-            background: rgba(245, 158, 11, 0.1);
-            border: 2px solid rgba(245, 158, 11, 0.3);
-            text-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
-        }
-
-        .risk-high {
-            color: var(--high-risk);
-            background: rgba(239, 68, 68, 0.1);
-            border: 2px solid rgba(239, 68, 68, 0.3);
-            text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-        }
-
-        .fatigue-metrics {
-            margin-top: 1.5rem;
-            width: 100%;
-            background: rgba(255,255,255,0.03);
-            padding: 1rem;
-            border-radius: 12px;
-        }
-
-        .metric-row {
+        /* Feature pills */
+        .feature-pills {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border-color);
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1.5rem;
         }
 
-        .metric-row:last-child {
-            border-bottom: none;
+        .pill {
+            font-size: 0.75rem;
+            color: var(--muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0.3rem 0.75rem;
         }
 
-        .metric-value {
+        /* Result card */
+        .result-card {
+            width: 100%;
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .result-label {
+            font-size: 0.78rem;
             font-weight: 600;
-            font-size: 1.2rem;
-            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-bottom: 0.75rem;
         }
 
-        /* Loading Spinner */
+        /* Risk ring */
+        .risk-ring-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .risk-ring {
+            position: relative;
+            width: 140px;
+            height: 140px;
+        }
+
+        .risk-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .risk-ring-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .risk-level-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .risk-level-sub {
+            font-size: 0.68rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .risk-ring circle {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1),
+                stroke 0.5s ease;
+        }
+
+        .ring-bg {
+            stroke: var(--border);
+        }
+
+        .ring-fill {
+            stroke: var(--accent);
+        }
+
+        /* Metrics grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .metric-card {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 1rem;
+        }
+
+        .metric-card .m-label {
+            font-size: 0.72rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.3rem;
+        }
+
+        .metric-card .m-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        /* Probability bars */
+        .prob-section {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .prob-title {
+            font-size: 0.78rem;
+            color: var(--muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.9rem;
+        }
+
+        .prob-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .prob-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .prob-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            min-width: 52px;
+        }
+
+        .prob-bar-track {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .prob-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .prob-pct {
+            font-size: 0.8rem;
+            font-weight: 600;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Advice banner */
+        .advice-banner {
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            border: 1px solid;
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .advice-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            margin-top: 0.05rem;
+        }
+
+        /* Loading */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            padding: 3rem;
+            width: 100%;
+            text-align: center;
+        }
+
         .spinner {
-            display: none;
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-left-color: var(--primary);
+            width: 44px;
+            height: 44px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem auto;
+            animation: spin 0.9s linear infinite;
         }
 
         @keyframes spin {
-            100% { transform: rotate(360deg); }
-        }
-
-        @media (max-width: 860px) {
-            .container {
-                grid-template-columns: 1fr;
-                padding: 2rem;
+            to {
+                transform: rotate(360deg);
             }
         }
-        
-        @media (max-width: 480px) {
+
+        .loading-text {
+            font-size: 0.88rem;
+            color: var(--muted);
+        }
+
+        /* Error */
+        .error-banner {
+            background: var(--high-bg);
+            border: 1px solid var(--high-border);
+            border-radius: var(--radius-sm);
+            padding: 1rem 1.2rem;
+            color: var(--high);
+            font-size: 0.88rem;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Animations for staggered fields */
+        .field {
+            animation: fadeField 0.3s ease both;
+        }
+
+        @keyframes fadeField {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 960px) {
+            .main {
+                grid-template-columns: 1fr;
+                padding: 1.5rem;
+            }
+
+            .left-panel {
+                padding-right: 0;
+            }
+
+            .right-panel {
+                padding-left: 0;
+                border-left: none;
+                border-top: 1px solid var(--border);
+                padding-top: 2rem;
+            }
+
+            .navbar {
+                padding: 1rem 1.5rem;
+            }
+        }
+
+        @media (max-width: 600px) {
             .form-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stat-row {
+                gap: 0.5rem;
+            }
+
+            .hero-title {
+                font-size: 1.8rem;
             }
         }
     </style>
 </head>
+
 <body>
+    <div id="root"></div>
 
-    <div class="container">
-        
-        <!-- Left Side: Form -->
-        <div class="form-section">
-            <div class="header-section">
-                <h1>Burnout Predictor</h1>
-                <p>AI-powered risk analysis for remote workers. Enter your daily metrics to predict your likelihood of burnout.</p>
-            </div>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-            <form id="predictionForm">
-                <div class="form-grid">
-                    
-                    <div class="input-group">
-                        <label>Day Type</label>
-                        <select id="day_type" required>
-                            <option value="Weekday">Weekday</option>
-                            <option value="Weekend">Weekend</option>
-                        </select>
-                    </div>
+    <script type="text/babel">
+        {% raw %}
+        const { useState, useEffect, useRef } = React;
 
-                    <div class="input-group">
-                        <label>Work Hours <span>(0-24)</span></label>
-                        <input type="number" id="work_hours" step="0.1" required placeholder="e.g. 8">
-                    </div>
+        // ─── Helpers ───────────────────────────────────────────────────────────────
+        const riskColor = {
+            Low: { text: 'var(--low)', bg: 'var(--low-bg)', border: 'var(--low-border)' },
+            Medium: { text: 'var(--med)', bg: 'var(--med-bg)', border: 'var(--med-border)' },
+            High: { text: 'var(--high)', bg: 'var(--high-bg)', border: 'var(--high-border)' },
+        };
 
-                    <div class="input-group">
-                        <label>Screen Time <span>(Hours)</span></label>
-                        <input type="number" id="screen_time" step="0.1" required placeholder="e.g. 6">
-                    </div>
+        const riskAdvice = {
+            Low: { icon: '✅', msg: 'Great job! Your metrics indicate a healthy work-life balance today. Keep maintaining your current routine.' },
+            Medium: { icon: '⚠️', msg: 'Moderate pressure detected. Consider taking more breaks, reducing screen time, and ensuring 7–8 hours of sleep tonight.' },
+            High: { icon: '🚨', msg: 'High burnout risk detected. We strongly recommend disconnecting after work hours, limiting meetings, and prioritising rest today.' },
+        };
 
-                    <div class="input-group">
-                        <label>Sleep Hours <span>(Last Night)</span></label>
-                        <input type="number" id="sleep_hours" step="0.1" required placeholder="e.g. 7.5">
-                    </div>
+        const circumference = 2 * Math.PI * 54; // radius 54
 
-                    <div class="input-group">
-                        <label>Meetings Count</label>
-                        <input type="number" id="meetings" required placeholder="e.g. 3">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Breaks Taken</label>
-                        <input type="number" id="breaks" required placeholder="e.g. 2">
-                    </div>
-
-                    <div class="input-group">
-                        <label>App Switches <span>(Context changes)</span></label>
-                        <input type="number" id="switches" required placeholder="e.g. 40">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Overtime <span>(After Hours)</span></label>
-                        <input type="number" id="overtime" step="0.1" required placeholder="e.g. 1.5">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Task Completion <span>(%)</span></label>
-                        <input type="number" id="task_comp" min="0" max="100" required placeholder="e.g. 85">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Isolation Index <span>(1-10)</span></label>
-                        <input type="number" id="isolation" min="1" max="10" required placeholder="e.g. 4">
-                    </div>
-
-                    <button type="submit" class="btn-submit" id="submitBtn">Analyze Risk</button>
-
-                </div>
-            </form>
-        </div>
-
-        <!-- Right Side: Results -->
-        <div id="result-container">
-            <div class="spinner" id="loadingSpinner"></div>
-            
-            <div id="resultContent" style="display:none; width:100%;">
-                <h2>Predicted Risk Level</h2>
-                
-                <div id="riskBadge" class="risk-badge">
-                    High
-                </div>
-
-                <div class="fatigue-metrics">
-                    <div class="metric-row">
-                        <span>Calculated Fatigue Score</span>
-                        <span class="metric-value" id="res_fatigue">8.5 / 10</span>
-                    </div>
-                    <div class="metric-row">
-                        <span>High Risk Probability</span>
-                        <span class="metric-value" id="res_prob">92%</span>
+        // ─── Risk Ring Component ───────────────────────────────────────────────────
+        function RiskRing({ level, probability }) {
+            const color = riskColor[level]?.text || 'var(--accent)';
+            const pct = level === 'Low' ? probability : level === 'Medium' ? 0.5 + probability * 0.2 : probability;
+            const offset = circumference - pct * circumference;
+            return (
+                <div className="risk-ring">
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                        <circle className="ring-bg" cx="70" cy="70" r="54" strokeDasharray={circumference} strokeDashoffset="0" />
+                        <circle className="ring-fill" cx="70" cy="70" r="54"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={offset}
+                            style={{ stroke: color, transition: 'stroke-dashoffset 1s cubic-bezier(0.16,1,0.3,1), stroke 0.5s' }}
+                        />
+                    </svg>
+                    <div className="risk-ring-text">
+                        <span className="risk-level-text" style={{ color }}>{level}</span>
+                        <span className="risk-level-sub">Risk</span>
                     </div>
                 </div>
+            );
+        }
 
-                <p style="margin-top:2rem; font-size:0.9rem; color:var(--text-muted);">
-                    Based on XGBoost Machine Learning Model processing 14 rolling features dynamically.
-                </p>
-            </div>
-            
-            <div id="placeholderText" style="color:var(--text-muted);">
-                Fill out the form and click analyze to view AI predictions.
-            </div>
-            <div id="errorText" style="display:none; color:var(--high-risk); margin-top:2rem;"></div>
-        </div>
+        // ─── Probability Bar ───────────────────────────────────────────────────────
+        function ProbBar({ name, value, color }) {
+            const [width, setWidth] = useState('0%');
+            useEffect(() => {
+                const t = setTimeout(() => setWidth((value * 100).toFixed(1) + '%'), 100);
+                return () => clearTimeout(t);
+            }, [value]);
+            return (
+                <div className="prob-row">
+                    <span className="prob-name" style={{ color }}>{name}</span>
+                    <div className="prob-bar-track">
+                        <div className="prob-bar-fill" style={{ width, background: color }} />
+                    </div>
+                    <span className="prob-pct" style={{ color }}>{(value * 100).toFixed(1)}%</span>
+                </div>
+            );
+        }
 
-    </div>
+        // ─── Step Indicator ────────────────────────────────────────────────────────
+        function StepIndicator({ step }) {
+            return (
+                <div className="step-progress">
+                    {[1, 2].map((s, i) => (
+                        <React.Fragment key={s}>
+                            <div className={`step-dot ${step > s ? 'done' : step === s ? 'active' : ''}`}>
+                                {step > s ? '✓' : s}
+                            </div>
+                            {i === 0 && (
+                                <div className="step-line">
+                                    <div className={`step-line-fill ${step > 1 ? 'done' : ''}`} />
+                                </div>
+                            )}
+                        </React.Fragment>
+                    ))}
+                    <span className="step-label">Step {step} of 2</span>
+                </div>
+            );
+        }
 
-    <script>
-        document.getElementById('predictionForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // UI States
-            const btn = document.getElementById('submitBtn');
-            const resultBox = document.getElementById('result-container');
-            const resultContent = document.getElementById('resultContent');
-            const spinner = document.getElementById('loadingSpinner');
-            const placeholder = document.getElementById('placeholderText');
-            const errorText = document.getElementById('errorText');
+        // ─── Form Field ────────────────────────────────────────────────────────────
+        function Field({ label, hint, children, span }) {
+            return (
+                <div className={`field${span ? ' span-2' : ''}`}>
+                    <label>{label} {hint && <span className="hint">{hint}</span>}</label>
+                    {children}
+                </div>
+            );
+        }
 
-            btn.disabled = true;
-            btn.innerText = "Analyzing...";
-            resultBox.style.display = "flex";
-            placeholder.style.display = "none";
-            resultContent.style.display = "none";
-            errorText.style.display = "none";
-            spinner.style.display = "block";
+        // ─── Main App ──────────────────────────────────────────────────────────────
+        function App() {
+            const [step, setStep] = useState(1);
+            const [status, setStatus] = useState('idle'); // idle | loading | done | error
+            const [result, setResult] = useState(null);
+            const [errorMsg, setErrorMsg] = useState('');
 
-            // Build Payload
-            const payload = {
-                day_type: document.getElementById('day_type').value,
-                work_hours: parseFloat(document.getElementById('work_hours').value),
-                screen_time_hours: parseFloat(document.getElementById('screen_time').value),
-                meetings_count: parseInt(document.getElementById('meetings').value),
-                breaks_taken: parseInt(document.getElementById('breaks').value),
-                after_hours_work: parseFloat(document.getElementById('overtime').value),
-                app_switches: parseInt(document.getElementById('switches').value),
-                sleep_hours: parseFloat(document.getElementById('sleep_hours').value),
-                task_completion: parseFloat(document.getElementById('task_comp').value),
-                isolation_index: parseInt(document.getElementById('isolation').value)
+            // Form state
+            const [form, setForm] = useState({
+                day_type: 'Weekday',
+                work_hours: '',
+                screen_time_hours: '',
+                after_hours_work: '',
+                sleep_hours: '',
+                breaks_taken: '',
+                app_switches: '',
+                meetings_count: '',
+                task_completion: '',
+                isolation_index: 5,
+            });
+
+            const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+            const step1Valid = () =>
+                form.day_type && form.work_hours !== '' && form.screen_time_hours !== '' && form.after_hours_work !== '';
+
+            const handleSubmit = async () => {
+                setStatus('loading');
+                setResult(null);
+                setErrorMsg('');
+
+                const payload = {
+                    day_type: form.day_type,
+                    work_hours: parseFloat(form.work_hours),
+                    screen_time_hours: parseFloat(form.screen_time_hours),
+                    meetings_count: parseInt(form.meetings_count),
+                    breaks_taken: parseInt(form.breaks_taken),
+                    after_hours_work: parseFloat(form.after_hours_work),
+                    app_switches: parseInt(form.app_switches),
+                    sleep_hours: parseFloat(form.sleep_hours),
+                    task_completion: parseFloat(form.task_completion),
+                    isolation_index: parseInt(form.isolation_index),
+                };
+
+                try {
+                    await new Promise(r => setTimeout(r, 600));
+                    const res = await fetch('/predict', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json();
+                    setResult(data);
+                    setStatus('done');
+                } catch (err) {
+                    setErrorMsg(err.message);
+                    setStatus('error');
+                }
             };
 
-            try {
-                // Simulate slight network delay for dramatic effect
-                await new Promise(r => setTimeout(r, 600));
+            const resetForm = () => {
+                setStep(1);
+                setStatus('idle');
+                setResult(null);
+                setErrorMsg('');
+                setForm({ day_type: 'Weekday', work_hours: '', screen_time_hours: '', after_hours_work: '', sleep_hours: '', breaks_taken: '', app_switches: '', meetings_count: '', task_completion: '', isolation_index: 5 });
+            };
 
-                const response = await fetch('/predict', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
+            const level = result?.burnout_risk_level;
+            const colors = level ? riskColor[level] : null;
 
-                if (!response.ok) {
-                    throw new Error("Server Error: " + response.statusText);
-                }
+            return (
+                <div className="page">
+                    {/* Navbar */}
+                    <nav className="navbar">
+                        <div className="logo">
+                            <div className="logo-icon">🔥</div>
+                            BurnoutAI
+                        </div>
+                        <span className="nav-badge">🤖 XGBoost · 14 Features</span>
+                    </nav>
 
-                const data = await response.json();
-                
-                // Update UI with Data
-                const badge = document.getElementById('riskBadge');
-                badge.innerText = data.burnout_risk_level;
-                
-                badge.className = "risk-badge"; // Reset
-                if (data.burnout_risk_level === "Low") badge.classList.add("risk-low");
-                else if (data.burnout_risk_level === "Medium") badge.classList.add("risk-medium");
-                else badge.classList.add("risk-high");
+                    {/* Main */}
+                    <main className="main">
+                        {/* ── Left: Form ── */}
+                        <div className="left-panel">
+                            <span className="hero-tag">AI-Powered Risk Analysis</span>
+                            <h1 className="hero-title">
+                                Your Burnout<br /><span>Risk Score</span>
+                            </h1>
+                            <p className="hero-desc">
+                                Enter your daily work metrics and our machine learning model will instantly predict your burnout risk level using 14 dynamically engineered features.
+                            </p>
 
-                document.getElementById('res_fatigue').innerText = data.fatigue_score.toFixed(2) + " / 10";
-                
-                // Show probability of the winning class
-                const maxProb = data.probabilities[data.burnout_risk_level];
-                document.getElementById('res_prob').innerText = (maxProb * 100).toFixed(1) + "%";
+                            <div className="stat-row">
+                                <div className="stat-chip">
+                                    <span className="val">14</span>
+                                    <span className="lbl">ML Features</span>
+                                </div>
+                                <div className="stat-chip">
+                                    <span className="val">3</span>
+                                    <span className="lbl">Risk Levels</span>
+                                </div>
+                                <div className="stat-chip">
+                                    <span className="val">XGB</span>
+                                    <span className="lbl">Model</span>
+                                </div>
+                            </div>
 
-                // Show results
-                spinner.style.display = "none";
-                resultContent.style.display = "block";
+                            <StepIndicator step={step} />
 
-            } catch (err) {
-                spinner.style.display = "none";
-                errorText.style.display = "block";
-                errorText.innerText = "Error completing prediction: " + err.message;
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Analyze Risk";
-            }
-        });
+                            <div className="card">
+                                {step === 1 && (
+                                    <>
+                                        <div className="card-title">📊 Work Metrics</div>
+                                        <div className="card-sub">Tell us about your workload today.</div>
+                                        <div className="form-grid" key="step1">
+                                            <Field label="Day Type">
+                                                <select id="day_type" value={form.day_type} onChange={set('day_type')}>
+                                                    <option value="Weekday">Weekday</option>
+                                                    <option value="Weekend">Weekend</option>
+                                                </select>
+                                            </Field>
+                                            <Field label="Work Hours" hint="(0–24 hrs)">
+                                                <input id="work_hours" type="number" step="0.5" min="0" max="24" placeholder="e.g. 8" value={form.work_hours} onChange={set('work_hours')} />
+                                            </Field>
+                                            <Field label="Screen Time" hint="(hours)">
+                                                <input id="screen_time" type="number" step="0.5" min="0" placeholder="e.g. 6" value={form.screen_time_hours} onChange={set('screen_time_hours')} />
+                                            </Field>
+                                            <Field label="Overtime" hint="(after-hours)">
+                                                <input id="after_hours" type="number" step="0.5" min="0" placeholder="e.g. 1.5" value={form.after_hours_work} onChange={set('after_hours_work')} />
+                                            </Field>
+                                        </div>
+                                        <div className="btn-row">
+                                            <button
+                                                id="nextStepBtn"
+                                                className="btn btn-primary"
+                                                onClick={() => setStep(2)}
+                                                disabled={!step1Valid()}
+                                            >
+                                                Next — Wellbeing →
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+
+                                {step === 2 && (
+                                    <>
+                                        <div className="card-title">💤 Wellbeing Metrics</div>
+                                        <div className="card-sub">How are you feeling and recovering?</div>
+                                        <div className="form-grid" key="step2">
+                                            <Field label="Sleep Hours" hint="(last night)">
+                                                <input id="sleep_hours" type="number" step="0.5" min="0" max="24" placeholder="e.g. 7" value={form.sleep_hours} onChange={set('sleep_hours')} />
+                                            </Field>
+                                            <Field label="Breaks Taken">
+                                                <input id="breaks" type="number" min="0" placeholder="e.g. 3" value={form.breaks_taken} onChange={set('breaks_taken')} />
+                                            </Field>
+                                            <Field label="App Switches" hint="(context changes)">
+                                                <input id="app_switches" type="number" min="0" placeholder="e.g. 40" value={form.app_switches} onChange={set('app_switches')} />
+                                            </Field>
+                                            <Field label="Meetings Count">
+                                                <input id="meetings" type="number" min="0" placeholder="e.g. 4" value={form.meetings_count} onChange={set('meetings_count')} />
+                                            </Field>
+                                            <Field label="Task Completion" hint="(0–100 %)">
+                                                <input id="task_comp" type="number" min="0" max="100" placeholder="e.g. 80" value={form.task_completion} onChange={set('task_completion')} />
+                                            </Field>
+                                            <Field label="Isolation Index" hint="(1–10)">
+                                                <div className="slider-wrapper">
+                                                    <input id="isolation_slider" type="range" min="1" max="10" value={form.isolation_index}
+                                                        onChange={set('isolation_index')} />
+                                                    <span className="slider-val">{form.isolation_index}</span>
+                                                </div>
+                                            </Field>
+                                        </div>
+                                        <div className="btn-row">
+                                            <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
+                                            <button
+                                                id="analyzeBtn"
+                                                className="btn btn-primary"
+                                                onClick={handleSubmit}
+                                                disabled={status === 'loading' || !form.sleep_hours || !form.breaks_taken || !form.app_switches || !form.meetings_count || !form.task_completion}
+                                            >
+                                                {status === 'loading' ? '⏳ Analyzing…' : '🔍 Analyze Risk'}
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* ── Right: Results ── */}
+                        <div className="right-panel">
+                            {status === 'idle' && (
+                                <div className="empty-state">
+                                    <div className="empty-icon">🧠</div>
+                                    <h3>Ready to Analyze</h3>
+                                    <p>Complete both steps of the form and click <strong>Analyze Risk</strong> to get your personalized burnout prediction.</p>
+                                    <div className="feature-pills">
+                                        <span className="pill">Rolling Fatigue Score</span>
+                                        <span className="pill">Context Switch Load</span>
+                                        <span className="pill">Effort Recovery Ratio</span>
+                                        <span className="pill">7-Day Averages</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {status === 'loading' && (
+                                <div className="loading-state">
+                                    <div className="spinner" />
+                                    <p className="loading-text">Running ML inference…<br />Calculating 14 dynamic features.</p>
+                                </div>
+                            )}
+
+                            {status === 'error' && (
+                                <div className="empty-state">
+                                    <div className="error-banner">⚠️ {errorMsg}</div>
+                                    <button className="btn btn-ghost" style={{ marginTop: '1rem' }} onClick={resetForm}>Try Again</button>
+                                </div>
+                            )}
+
+                            {status === 'done' && result && (
+                                <div className="result-card">
+                                    <div className="result-header">
+                                        <div className="result-label">Your Burnout Risk Level</div>
+                                        <div className="risk-ring-wrapper">
+                                            <RiskRing
+                                                level={level}
+                                                probability={result.probabilities[level]}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Metric cards */}
+                                    <div className="metrics-grid">
+                                        <div className="metric-card">
+                                            <div className="m-label">Fatigue Score</div>
+                                            <div className="m-val" style={{ color: colors.text }}>
+                                                {result.fatigue_score.toFixed(2)}<small style={{ fontSize: '0.8rem', color: 'var(--muted)' }}> / 10</small>
+                                            </div>
+                                        </div>
+                                        <div className="metric-card">
+                                            <div className="m-label">Confidence</div>
+                                            <div className="m-val" style={{ color: colors.text }}>
+                                                {(result.probabilities[level] * 100).toFixed(1)}<small style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>%</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Probability bars */}
+                                    <div className="prob-section">
+                                        <div className="prob-title">Probability Breakdown</div>
+                                        <ProbBar name="Low" value={result.probabilities.Low} color="var(--low)" />
+                                        <ProbBar name="Med" value={result.probabilities.Medium} color="var(--med)" />
+                                        <ProbBar name="High" value={result.probabilities.High} color="var(--high)" />
+                                    </div>
+
+                                    {/* Advice */}
+                                    <div className="advice-banner" style={{ background: colors.bg, borderColor: colors.border, color: colors.text }}>
+                                        <span className="advice-icon">{riskAdvice[level].icon}</span>
+                                        <span>{riskAdvice[level].msg}</span>
+                                    </div>
+
+                                    <button className="btn btn-ghost" style={{ width: '100%', marginTop: '1rem' }} onClick={resetForm}>
+                                        🔄 New Analysis
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+
+                    <footer className="footer">
+                        Powered by XGBoost &amp; React · Remote Employee Burnout Predictor v1.0
+                    </footer>
+                </div>
+            );
+        }
+
+        // ─── Mount ─────────────────────────────────────────────────────────────────
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+        {% endraw %}
     </script>
 </body>
+
 </html>
